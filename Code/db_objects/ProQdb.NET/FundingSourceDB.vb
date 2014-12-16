@@ -1,0 +1,373 @@
+Option Strict Off
+Option Explicit On
+<System.Runtime.InteropServices.ProgId("FundingSourceDB_NET.FundingSourceDB")> Public Class FundingSourceDB
+	'FundingSourceDB.cls
+	'
+	'this class manages the persistent data for the Funding Sources
+	'
+	'JLeiner
+	'07 June 2002
+	
+	
+	
+	'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+	'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+	'                            constants
+	'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+	'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+	
+	'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+	'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+	'                         private members
+	'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+	'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+	
+	'the dsn used to connect to this db/table
+    Private m_strDSN As String = DB_DSN
+	'the name of the table or view used by this class
+    Private Const m_strTable As String = DB_TABLE_FUNDINGSOURCE
+    Private Const m_strSQL As String = "Select * From " & DB_TABLE_FUNDINGSOURCE
+
+	'whether or not the object has been constructed
+    Private m_objConn As OleDbConnection
+    'Private m_objRS As DataSet 
+
+    Private m_strID As String 'the guid of the object
+    Private m_strAggregationID As String 'The Aggregation the Source belongs to
+    Private m_strName As String 'the friendly name
+    Private m_strAbbreviation As String 'The Abbreviation for the Source Name
+    Private m_dblValue As Double 'The Total Budget for the Source
+    Private m_fAllowKitCosts As Boolean 'Does the Source Fund Kits?
+    Private m_fAllowCustomsCosts As Boolean 'Does the Source Fund Kits?
+    Private m_fAllowStorageCosts As Boolean 'Does the Source Fund Kits?
+    Private m_strNotes As String 'free text describing the record
+    Private m_fFundByUse As Boolean 'Does this Funding Source, fund by use or not?
+
+
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    '                         public members
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+    'hide everything from the user
+
+
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    '                         private methods
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+    'Class_Initialize() (constructor)
+    '
+    'connect to the db and load the data into memory
+    '
+    'lbailey
+    '16 may 2002
+    '
+    'UPGRADE_NOTE: Class_Initialize was upgraded to Class_Initialize_Renamed. Click for more: 'ms-help://MS.VSCC.v80/dv_commoner/local/redirect.htm?keyword="A9E4979A-37FA-4718-9994-97DD76ED70A7"'
+    Private Sub Class_Initialize_Renamed()
+        'get a connection to the db
+        'Set m_objConn = GetConnection(m_strDSN)
+
+        'load the data into memory
+        '    m_objRS.Open _
+        'm_strTable, _
+        'm_objConn, _
+        'adOpenDynamic, _
+        'adLockPessimistic, _
+        'adCmdTable
+    End Sub
+    Public Sub New()
+        MyBase.New()
+        Class_Initialize_Renamed()
+    End Sub
+
+
+
+    'Class_Terminate() (destructor)
+    '
+    'cleans up whatever needs to be cleaned up when this object is
+    'released.
+    '
+    'jleiner
+    '07 June 2002
+    '
+    'UPGRADE_NOTE: Class_Terminate was upgraded to Class_Terminate_Renamed. Click for more: 'ms-help://MS.VSCC.v80/dv_commoner/local/redirect.htm?keyword="A9E4979A-37FA-4718-9994-97DD76ED70A7"'
+    Private Sub Class_Terminate_Renamed()
+        'release the connections to the db
+        'm_objRS.Close
+        'Set m_objConn = Nothing
+    End Sub
+    Protected Overrides Sub Finalize()
+        Class_Terminate_Renamed()
+        MyBase.Finalize()
+    End Sub
+
+
+
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    '                         public methods
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+
+    '+
+    'Load()
+    '
+    'gets the specified record and populates this object with its values
+    '
+    'jleiner
+    '07 June 2002
+    '-
+    Public Sub Load(ByRef strID As String)
+
+
+        Dim i As Integer
+        Dim strGuid As String
+        Dim rst As DataSet
+        Dim objAdapter As OleDbDataAdapter
+
+        'get a connection to the db
+        m_objConn = GetConnection(m_strDSN)
+
+        'load the data into memory
+        'rst.Open(m_strTable, m_objConn, ADODB.CursorTypeEnum.adOpenDynamic, ADODB.LockTypeEnum.adLockPessimistic, ADODB.CommandTypeEnum.adCmdTable)
+        objAdapter = New OleDb.OleDbDataAdapter(m_strSQL & " WHERE GuidID = {" & strID & "}", m_objConn)
+        rst = New DataSet
+        objAdapter.Fill(rst, m_strTable)
+
+        'select the desired record
+        '.Filter = "guidID = '" & strID & "'"
+        For i = 0 To rst.Tables(m_strTable).Rows.Count - 1
+            strGuid = CType((rst.Tables(m_strTable).Rows(i).Item("GuidID")), Guid).ToString()
+            If strGuid = strID Then
+                With rst.Tables(m_strTable).Rows(i)
+                    'copy the values into the class members
+                    m_strID = CType((.Item("GuidID")), Guid).ToString() '.Fields("guidID").Value
+                    m_strAggregationID = CType((.Item("guidID_Aggregation")), Guid).ToString() '.Fields("guidID_Aggregation").Value
+                    m_strName = .Item("strName") '.Fields("strName").Value
+                    m_strAbbreviation = .Item("strAbbreviation") '.Fields("strAbbreviation").Value
+                    m_dblValue = .Item("dblValue") '.Fields("dblValue").Value
+                    m_fAllowKitCosts = .Item("fAllowKitCosts") '.Fields("fAllowKitCosts").Value
+                    m_fAllowCustomsCosts = .Item("fAllowCustomsCosts") '.Fields("fAllowCustomsCosts").Value
+                    m_fAllowStorageCosts = .Item("fAllowStorageCosts") '.Fields("fAllowStorageCosts").Value
+                    m_strNotes = IIf(IsDBNull(.Item("MemNotes")), "", .Item("MemNotes"))
+                    m_fFundByUse = .Item("fFundByUse") '.Fields("fFundByUse").Value
+                End With
+                Exit For
+            End If
+        Next i
+
+        CloseDB(m_objConn, rst)
+
+        rst = Nothing
+        m_objConn = Nothing
+
+    End Sub
+
+    '+
+    'Create()
+    '
+    'Adds the New Record to the db using the info that we've got
+    '
+    'lbailey
+    '16 may 2002
+    '-
+    Public Function Create() As String
+
+        'get a connection to the db
+        m_objConn = GetConnection(m_strDSN)
+        Dim cb As OleDb.OleDbCommandBuilder
+        Dim dsNewRow As DataRow
+        Dim rst As New DataSet
+        Dim objAdapter As OleDbDataAdapter
+
+        'connect to the db and get a recordset
+        m_objConn = GetConnection(DB_DSN)
+        objAdapter = New OleDb.OleDbDataAdapter(m_strSQL, m_objConn)
+        objAdapter.Fill(rst, m_strTable)
+        cb = New OleDb.OleDbCommandBuilder(objAdapter)
+
+        dsNewRow = rst.Tables(m_strTable).NewRow()
+
+        'if we don't already have an id for this, then create one
+        If (Len(m_strID) < 1) Then
+            'use the guid generator to create an id
+            'UPGRADE_WARNING: Couldn't resolve default property of object g_objGUIDGenerator.GetGUID(). Click for more: 'ms-help://MS.VSCC.v80/dv_commoner/local/redirect.htm?keyword="6A50421D-15FE-4896-8A1B-2EC21E9037B2"'
+            m_strID = g_objGUIDGenerator.GetGUID()
+        End If
+        'stuff all of the record's properties
+        dsNewRow.Item("guidID") = New Guid(m_strID)
+        dsNewRow.Item("guidID_Aggregation") = New Guid(m_strAggregationID)
+        dsNewRow.Item("strName") = m_strName
+        dsNewRow.Item("strAbbreviation") = m_strAbbreviation
+        dsNewRow.Item("dblValue") = m_dblValue
+        dsNewRow.Item("fAllowKitCosts") = m_fAllowKitCosts
+        dsNewRow.Item("fAllowCustomsCosts") = m_fAllowCustomsCosts
+        dsNewRow.Item("fAllowStorageCosts") = m_fAllowStorageCosts
+        dsNewRow.Item("MemNotes") = m_strNotes
+        dsNewRow.Item("fFundByUse") = m_fFundByUse
+        rst.Tables(m_strTable).Rows.Add(dsNewRow)
+
+        objAdapter.Update(rst, m_strTable)
+
+        'clean up
+        CloseDB(m_objConn, rst)
+
+        'return the id of the created object
+        Create = m_strID '.Fields("guidID").Value()
+
+    End Function
+
+
+    '+
+    'Update()
+    '
+    'Persists the current fields into the db
+    '
+    'jleiner/lbailey 31 may 2002
+    '-
+    Public Sub Update()
+
+
+        Dim i As Integer
+        Dim cb As OleDb.OleDbCommandBuilder
+        Dim rst As New DataSet
+        Dim objAdapter As OleDbDataAdapter
+
+        'connect to the db and get a recordset
+        m_objConn = GetConnection(DB_DSN)
+        objAdapter = New OleDb.OleDbDataAdapter(m_strSQL, m_objConn)
+        objAdapter.Fill(rst, m_strTable)
+        cb = New OleDb.OleDbCommandBuilder(objAdapter)
+
+        With rst
+            For i = 0 To .Tables(m_strTable).Rows.Count - 1
+                Dim strGuid As String
+                strGuid = CType(.Tables(m_strTable).Rows(i).Item(DB_TABLE_PK), Guid).ToString
+                If strGuid = m_strID Then
+                    'stuff all of the record's properties
+                    .Tables(m_strTable).Rows(i).Item("guidID_Aggregation") = New Guid(m_strAggregationID)
+                    .Tables(m_strTable).Rows(i).Item("strName") = m_strName
+                    .Tables(m_strTable).Rows(i).Item("strAbbreviation") = m_strAbbreviation
+                    .Tables(m_strTable).Rows(i).Item("dblValue") = m_dblValue
+                    .Tables(m_strTable).Rows(i).Item("fAllowKitCosts") = m_fAllowKitCosts
+                    .Tables(m_strTable).Rows(i).Item("fAllowCustomsCosts") = m_fAllowCustomsCosts
+                    .Tables(m_strTable).Rows(i).Item("fAllowStorageCosts") = m_fAllowStorageCosts
+                    .Tables(m_strTable).Rows(i).Item("MemNotes") = m_strNotes
+                    .Tables(m_strTable).Rows(i).Item("fFundByUse") = m_fFundByUse
+
+                    'write the record
+                    objAdapter.Update(rst, m_strTable)
+
+                    Exit For
+                End If
+            Next
+        End With
+
+        'clean up
+        CloseDB(m_objConn, rst)
+    End Sub
+
+
+    '+
+    'Delete()
+    '
+    'Removes the specified object from the repository
+    '
+    'lbailey 16 may 2002
+    '-
+    Public Sub Delete()
+
+        Dim rst As New DataSet
+
+        DeleteRecord(m_objConn, rst, m_strTable, m_strSQL, m_strID)
+        CloseDB(m_objConn, rst)
+    End Sub
+	
+	
+	
+	'+
+	'standard accessor functions
+	'
+	'lbailey
+	'16 may 2002
+	'-
+	Public Function GetID() As String
+		GetID = m_strID
+	End Function
+	
+	Public Function GetAggregationID() As String
+		GetAggregationID = m_strAggregationID
+	End Function
+	
+	Public Function GetName() As String
+		GetName = m_strName
+	End Function
+	
+	Public Function GetAbbreviation() As String
+		GetAbbreviation = m_strAbbreviation
+	End Function
+	
+	Public Function GetValue() As Double
+		GetValue = m_dblValue
+	End Function
+	Public Function GetAllowKitCosts() As Boolean
+		GetAllowKitCosts = m_fAllowKitCosts
+	End Function
+	Public Function GetAllowCustomsCosts() As Boolean
+		GetAllowCustomsCosts = m_fAllowCustomsCosts
+	End Function
+	Public Function GetAllowStorageCosts() As Boolean
+		GetAllowStorageCosts = m_fAllowStorageCosts
+	End Function
+	Public Function GetNotes() As String
+		GetNotes = m_strNotes
+	End Function
+	Public Function GetFundByUse() As Boolean
+		GetFundByUse = m_fFundByUse
+	End Function
+	
+	'+
+	'standard manipulator functions
+	'
+	'lbailey
+	'16 may 2002
+	'-
+	Public Sub SetID(ByRef strID As String)
+		m_strID = strID
+	End Sub
+	Public Sub SetAggregationID(ByRef strAggregationID As String)
+		m_strAggregationID = strAggregationID
+	End Sub
+	
+	Public Sub SetName(ByRef strName As String)
+		m_strName = strName
+	End Sub
+	
+	Public Sub SetAbbreviation(ByRef strAbbreviation As String)
+		m_strAbbreviation = strAbbreviation
+	End Sub
+	Public Sub SetValue(ByRef dblValue As Double)
+		m_dblValue = dblValue
+	End Sub
+	Public Sub SetAllowKitCosts(ByRef fAllow As Boolean)
+		m_fAllowKitCosts = fAllow
+	End Sub
+	Public Sub SetAllowCustomsCosts(ByRef fAllow As Boolean)
+		m_fAllowCustomsCosts = fAllow
+	End Sub
+	Public Sub SetAllowStorageCosts(ByRef fAllow As Boolean)
+		m_fAllowStorageCosts = fAllow
+	End Sub
+	Public Sub SetNotes(ByRef strNotes As String)
+		m_strNotes = strNotes
+	End Sub
+	
+	Public Sub setFundByUse(ByRef fFundByUse As Boolean)
+		m_fFundByUse = fFundByUse
+	End Sub
+End Class
